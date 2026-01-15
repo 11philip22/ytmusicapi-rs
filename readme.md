@@ -25,7 +25,7 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ytmusicapi = { path = "path/to/ytmusicapi-rs" }
+ytmusicapi = { version = "0.1.0" }
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 

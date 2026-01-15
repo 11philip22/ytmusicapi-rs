@@ -34,9 +34,25 @@ pub fn parse_library_playlists(response: &Value) -> Vec<PlaylistSummary> {
     };
 
     // Find the grid in section list
+    // The structure can be:
+    // 1. gridRenderer -> items (direct)
+    // 2. itemSectionRenderer -> contents[0] -> gridRenderer -> items (wrapper)
     let grid_items = section_list.iter().find_map(|item| {
-        let grid = nav(item, paths::GRID_ITEMS)?;
-        grid.as_array()
+        // Option 1: Direct gridRenderer
+        if let Some(grid) = item.get("gridRenderer") {
+            return nav(grid, &path!["items"])?.as_array();
+        }
+
+        // Option 2: Nested in itemSectionRenderer
+        if let Some(item_section) = item.get("itemSectionRenderer") {
+            if let Some(grid_items) =
+                nav(item_section, &path!["contents", 0, "gridRenderer", "items"])
+            {
+                return grid_items.as_array();
+            }
+        }
+
+        None
     });
 
     let items = match grid_items {

@@ -255,14 +255,16 @@ impl YTMusicClient {
 
         // Add auth headers if authenticated
         if let Some(ref auth) = self.auth {
+            // Combine user cookies with required SOCS cookie
+            let combined_cookie = format!("{}; SOCS=CAI", auth.cookie);
             request = request
                 .header("authorization", auth.get_authorization()?)
-                .header("cookie", &auth.cookie)
+                .header("cookie", combined_cookie)
                 .header("x-goog-authuser", &auth.x_goog_authuser);
+        } else {
+            // Add only SOCS cookie for unauthenticated requests
+            request = request.header("cookie", "SOCS=CAI");
         }
-
-        // Add required cookie for consent
-        request = request.header("cookie", "SOCS=CAI");
 
         let response = request.send().await?;
 

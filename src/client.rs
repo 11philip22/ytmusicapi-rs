@@ -11,7 +11,7 @@ use crate::parsers::{
     get_continuation_token, parse_library_playlists, parse_playlist_response, parse_playlist_tracks,
 };
 use crate::path;
-use crate::types::{Playlist, PlaylistSummary, PlaylistTrack};
+use crate::types::{Playlist, PlaylistSummary, PlaylistTrack, Song};
 
 /// The main YouTube Music API client.
 ///
@@ -181,6 +181,22 @@ impl YTMusicClient {
         self.get_playlist("LM", limit).await
     }
 
+    /// Get song metadata (including genre/category).
+    pub async fn get_song(&self, video_id: &str) -> Result<Song> {
+        let body = json!({
+            "video_id": video_id,
+            "playbackContext": {
+                "contentPlaybackContext": {
+                    "signatureTimestamp": 0 // We might need a real timestamp for streaming, but 0 often works for metadata
+                }
+            }
+        });
+
+        let response = self.send_request("player", body).await?;
+        let song: Song = serde_json::from_value(response)?;
+        Ok(song)
+    }
+
     /// Fetch additional tracks via continuation token.
     async fn fetch_playlist_continuations(
         &self,
@@ -255,7 +271,7 @@ impl YTMusicClient {
     }
 
     /// Send a request to the YouTube Music API.
-    async fn send_request(&self, endpoint: &str, mut body: Value) -> Result<Value> {
+    pub async fn send_request(&self, endpoint: &str, mut body: Value) -> Result<Value> {
         // Merge context into body
         let context = create_context(
             &self.language,

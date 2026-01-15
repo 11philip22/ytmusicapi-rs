@@ -50,13 +50,24 @@ impl YTMusicClient {
 
     /// Get all playlists from the user's library.
     ///
+    /// This fetches "Your Likes", "Albums", and user-created playlists.
+    ///
     /// # Arguments
     ///
     /// * `limit` - Maximum number of playlists to return. `None` for all.
     ///
-    /// # Errors
+    /// # Example
     ///
-    /// Returns `Error::AuthRequired` if the client is not authenticated.
+    /// ```no_run
+    /// # use ytmusicapi::YTMusicClient;
+    /// # async fn example(client: &YTMusicClient) -> ytmusicapi::Result<()> {
+    /// let playlists = client.get_library_playlists(Some(10)).await?;
+    /// for playlist in playlists {
+    ///     println!("{}", playlist.title);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn get_library_playlists(&self, limit: Option<u32>) -> Result<Vec<PlaylistSummary>> {
         self.check_auth()?;
 
@@ -79,10 +90,27 @@ impl YTMusicClient {
 
     /// Get a playlist with its tracks.
     ///
+    /// Fetches metadata and tracks for a given playlist ID.
+    /// Automatically handles pagination to fetch all tracks if requested.
+    ///
     /// # Arguments
     ///
-    /// * `playlist_id` - The playlist ID (with or without "VL" prefix)
+    /// * `playlist_id` - The playlist ID (can be with or without `VL` prefix).
     /// * `limit` - Maximum number of tracks to return. `None` for all (up to ~5000).
+    ///
+    /// # Example
+    ///
+    /// ```no_run
+    /// # use ytmusicapi::YTMusicClient;
+    /// # async fn example(client: &YTMusicClient) -> ytmusicapi::Result<()> {
+    /// let playlist = client.get_playlist("PL123456789", None).await?;
+    /// println!("Title: {}", playlist.title);
+    /// for track in playlist.tracks {
+    ///     println!(" - {} by {:?}", track.title.unwrap_or_default(), track.artists);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
     pub async fn get_playlist(&self, playlist_id: &str, limit: Option<u32>) -> Result<Playlist> {
         // Ensure playlist ID has VL prefix for browse endpoint
         let browse_id = if playlist_id.starts_with("VL") {

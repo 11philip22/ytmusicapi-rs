@@ -12,11 +12,30 @@ use crate::error::{Error, Result};
 
 /// Browser-based authentication using cookies from a YouTube Music session.
 ///
-/// To obtain these credentials:
-/// 1. Open YouTube Music in your browser and log in
-/// 2. Open Developer Tools (F12) → Network tab
-/// 3. Find a request to `music.youtube.com`
-/// 4. Copy the `cookie` and `x-goog-authuser` headers
+/// This authentication method (mimicking a browser) is required for most
+/// authenticated operations like accessing your library or managing playlists.
+///
+/// # Obtaining Credentials
+///
+/// 1. Open [YouTube Music](https://music.youtube.com) in your browser and log in.
+/// 2. Open Developer Tools (F12) and go to the **Network** tab.
+/// 3. Filter for `browse` requests.
+/// 4. Reload the page if needed, and select a `browse` request (e.g. `browse?...`).
+/// 5. In the **Request Headers** section, find:
+///    - `Cookie`: The full cookie string.
+///    - `x-goog-authuser`: The auth user index (usually `0`).
+///
+/// # Usage
+///
+/// You can save these credentials to a JSON file (recommended) or create `BrowserAuth` directly.
+///
+/// **headers.json example:**
+/// ```json
+/// {
+///     "cookie": "SID=...; __Secure-3PAPISID=...; ...",
+///     "x-goog-authuser": "0"
+/// }
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BrowserAuth {
     /// The full cookie string from the browser

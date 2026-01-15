@@ -1,8 +1,12 @@
 # ytmusicapi-rs
 
-A Rust library for the YouTube Music API.
+[![Crates.io](https://img.shields.io/crates/v/ytmusicapi.svg)](https://crates.io/crates/ytmusicapi)
+[![Documentation](https://docs.rs/ytmusicapi/badge.svg)](https://docs.rs/ytmusicapi)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-> Rust port of the Python [ytmusicapi](https://github.com/sigma67/ytmusicapi) library.
+<img src="https://upload.wikimedia.org/wikipedia/commons/1/1c/YouTube_Music_2024.svg" alt="ytmusicapi" width="300">
+
+A Rust library for the YouTube Music API.
 
 > [!NOTE]
 > 🚧 **Work in Progress**: currently implementing only **playlist reading** features. Search, library management, and uploads are not yet supported.
@@ -102,6 +106,10 @@ Run the example:
 cargo run --example list_playlists
 ```
 
+## Acknowledgements
+
+This library is a Rust port of [ytmusicapi](https://github.com/sigma67/ytmusicapi).
+
 ## License
 
-MIT
+MIT License - see [license](license) for details.

@@ -2,8 +2,9 @@
 
 use reqwest::header::{HeaderMap, HeaderName, HeaderValue};
 use serde_json::{json, Value};
+use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::auth::BrowserAuth;
+use crate::auth::{Auth, BrowserAuth, OAuthCredentials, OAuthState, OAuthToken};
 use crate::context::{create_context, default_headers, YTM_BASE_API, YTM_PARAMS, YTM_PARAMS_KEY};
 use crate::error::{Error, Result};
 use crate::nav::nav;
@@ -18,7 +19,7 @@ use crate::types::{Playlist, PlaylistSummary, PlaylistTrack, Song};
 /// Use [`YTMusicClient::builder()`] to create a new instance.
 pub struct YTMusicClient {
     http: reqwest::Client,
-    auth: Option<BrowserAuth>,
+    auth: Option<Auth>,
     language: String,
     location: Option<String>,
     user: Option<String>,
@@ -26,7 +27,7 @@ pub struct YTMusicClient {
 
 /// Builder for constructing a [`YTMusicClient`].
 pub struct YTMusicClientBuilder {
-    auth: Option<BrowserAuth>,
+    auth: Option<Auth>,
     language: String,
     location: Option<String>,
     user: Option<String>,
@@ -287,10 +288,9 @@ impl YTMusicClient {
         }
 
         // Build URL
-        let params = if self.auth.is_some() {
-            format!("{}{}", YTM_PARAMS, YTM_PARAMS_KEY)
-        } else {
-            YTM_PARAMS.to_string()
+        let params = match &self.auth {
+            Some(Auth::Browser(_)) => format!("{}{}", YTM_PARAMS, YTM_PARAMS_KEY),
+            _ => YTM_PARAMS.to_string(),
         };
         let url = format!("{}{}{}", YTM_BASE_API, endpoint, params);
 
@@ -298,16 +298,35 @@ impl YTMusicClient {
         let mut request = self.http.post(&url).json(&body);
 
         // Add auth headers if authenticated
-        if let Some(ref auth) = self.auth {
-            // Combine user cookies with required SOCS cookie
-            let combined_cookie = format!("{}; SOCS=CAI", auth.cookie);
-            request = request
-                .header("authorization", auth.get_authorization()?)
-                .header("cookie", combined_cookie)
-                .header("x-goog-authuser", &auth.x_goog_authuser);
-        } else {
-            // Add only SOCS cookie for unauthenticated requests
-            request = request.header("cookie", "SOCS=CAI");
+        match &self.auth {
+            Some(Auth::Browser(auth)) => {
+                // Combine user cookies with required SOCS cookie
+                let combined_cookie = format!("{}; SOCS=CAI", auth.cookie);
+                request = request
+                    .header("authorization", auth.get_authorization()?)
+                    .header("cookie", combined_cookie)
+                    .header("x-goog-authuser", &auth.x_goog_authuser);
+            }
+            Some(Auth::OAuth(oauth_state)) => {
+                let token = oauth_state.ensure_access_token().await?;
+                let scheme = token.token_type.as_deref().unwrap_or("Bearer");
+                let request_time = SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs();
+
+                request = request
+                    .header(
+                        "authorization",
+                        format!("{} {}", scheme, token.access_token),
+                    )
+                    .header("x-goog-request-time", request_time.to_string())
+                    .header("cookie", "SOCS=CAI");
+            }
+            None => {
+                // Add only SOCS cookie for unauthenticated requests
+                request = request.header("cookie", "SOCS=CAI");
+            }
         }
 
         let response = request.send().await?;
@@ -353,7 +372,25 @@ impl YTMusicClient {
 impl YTMusicClientBuilder {
     /// Set browser authentication.
     pub fn with_browser_auth(mut self, auth: BrowserAuth) -> Self {
-        self.auth = Some(auth);
+        self.auth = Some(Auth::Browser(auth));
+        self
+    }
+
+    /// Set OAuth authentication using an existing token.
+    ///
+    /// To enable automatic refresh, use [`with_oauth_token_and_credentials`].
+    pub fn with_oauth_token(mut self, token: OAuthToken) -> Self {
+        self.auth = Some(Auth::OAuth(OAuthState::new(token, None)));
+        self
+    }
+
+    /// Set OAuth authentication with refresh support.
+    pub fn with_oauth_token_and_credentials(
+        mut self,
+        token: OAuthToken,
+        credentials: OAuthCredentials,
+    ) -> Self {
+        self.auth = Some(Auth::OAuth(OAuthState::new(token, Some(credentials))));
         self
     }
 

@@ -13,7 +13,7 @@ A Rust library for the YouTube Music API.
 
 ## Features
 
-- 🔐 **Browser cookie authentication**
+- 🔐 **Authentication**: Browser cookies or OAuth device flow
 - 📋 **Playlist APIs**: List library playlists, get playlist tracks
 - ❤️ **Liked Songs**: Access your liked songs playlist
 - 📄 **Pagination**: Automatic handling of large playlists
@@ -31,7 +31,7 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 
 ## Quick Start
 
-### 1. Get Your Browser Headers
+### Option A: Browser headers
 
 1. Open [YouTube Music](https://music.youtube.com) in your browser and log in
 2. Open Developer Tools (F12) → Network tab
@@ -46,18 +46,47 @@ tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 }
 ```
 
-### 2. Use the Library
+### Option B: OAuth device flow
+
+1. Create a YouTube Data API OAuth client (type: **TVs and Limited Input devices**)
+2. Run the device flow in code to obtain an `oauth.json` token file:
 
 ```rust
-use ytmusicapi::{BrowserAuth, YTMusicClient};
+use ytmusicapi::{OAuthCredentials, OAuthToken};
+
+# async fn setup_oauth() -> ytmusicapi::Result<()> {
+let credentials = OAuthCredentials::new("CLIENT_ID", "CLIENT_SECRET")?;
+let device = credentials.request_device_code().await?;
+println!("Visit {} and enter {}", device.verification_url, device.user_code);
+// Wait for the user to finish in the browser...
+let token = credentials.exchange_device_code(&device.device_code).await?;
+token.to_file("oauth.json")?;
+# Ok(())
+# }
+```
+
+You can reuse `oauth.json` later without repeating the flow.
+
+### Use the Library
+
+```rust
+use ytmusicapi::{BrowserAuth, OAuthCredentials, OAuthToken, YTMusicClient};
 
 #[tokio::main]
 async fn main() -> ytmusicapi::Result<()> {
+    // Browser cookies
     let auth = BrowserAuth::from_file("headers.json")?;
     
     let client = YTMusicClient::builder()
         .with_browser_auth(auth)
         .build()?;
+
+    // Or OAuth (uncomment to use)
+    // let token = OAuthToken::from_file("oauth.json")?;
+    // let creds = OAuthCredentials::new("CLIENT_ID", "CLIENT_SECRET")?;
+    // let client = YTMusicClient::builder()
+    //     .with_oauth_token_and_credentials(token, creds)
+    //     .build()?;
 
     // List all playlists
     let playlists = client.get_library_playlists(None).await?;
@@ -100,11 +129,26 @@ async fn main() -> ytmusicapi::Result<()> {
 
 ## Examples
 
-Run the example:
+- List playlists with browser auth:
+  ```bash
+  cargo run --example list_playlists
+  ```
+- OAuth device flow (requires `CLIENT_ID`/`CLIENT_SECRET` env vars):
+  ```bash
+  CLIENT_ID=... CLIENT_SECRET=... cargo run --example oauth_device_flow
+  ```
 
-```bash
-cargo run --example list_playlists
-```
+## TODO / Missing Parity
+
+- Auth parity: accept fully formed OAuth headers/custom clients; visitor-id bootstrap; mobile context toggle
+- Pagination/continuations: finish library playlist paging and general continuation handling for new endpoints
+- Search + suggestions: search API plus suggestion fetch/remove
+- Library reads/actions: library songs/albums/artists, subscriptions/channels, history add/remove, ratings, account info
+- Playlists: create/edit/delete, add/remove items, rate playlists
+- Browse metadata: home feed, artist/album/user/channel/podcast info, related songs, lyrics (incl. timed), taste profile get/set
+- Explore/Charts and watch/queue (`get_watch_playlist`)
+- Uploads: list upload songs/albums/artists, upload song, delete upload entity
+- Podcasts: channel/podcast/episode APIs, saved episodes
 
 ## Acknowledgements
 

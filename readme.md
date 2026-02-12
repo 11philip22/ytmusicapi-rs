@@ -131,6 +131,10 @@ cargo run --example add_song_to_playlist -- \
   --video-id VIDEO_ID \
   [--allow-duplicates]
 cargo run --example get_liked_songs -- [--limit 50]
+cargo run --example like_song -- \
+  --video-id VIDEO_ID
+cargo run --example unlike_song -- \
+  --video-id VIDEO_ID
 cargo run --example delete_playlist -- \
   --playlist-id PLAYLIST_ID
 cargo run --example remove_playlist_items -- \

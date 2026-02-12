@@ -1,8 +1,8 @@
 [package]
 name = "ytmusicapi"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2024"
-description = "Rust client for YouTube Music API - playlist reading focused"
+description = "Rust client for YouTube Music API"
 license = "MIT"
 keywords = ["youtube", "music", "api", "ytmusic", "youtube-music"]
 categories = ["api-bindings", "multimedia::audio", "web-programming::http-client"]

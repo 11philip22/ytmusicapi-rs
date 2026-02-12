@@ -6,10 +6,11 @@
 //! ## Features
 //!
 //! - **Browsing**: Fetch playlists, library tracks, and playlist details.
+//! - **Editing**: Like/unlike songs and move items between playlists.
 //! - **Authentication**: Browser-cookie based authentication (required for library access).
 //! - **Robust**: Handles various API response formats (premium vs free, grid vs list).
 //!
-//! *Note: Currently focused on **read-only** operations (reading playlists/library).*
+//! *Note: Search, uploads, and some library management features are not yet supported.*
 //!
 //! ## Installation
 //!

@@ -1,6 +1,7 @@
 //! Playlist types.
 
 use serde::{Deserialize, Serialize};
+use serde_json::Value;
 
 use super::{Album, Artist, Author, Thumbnail};
 
@@ -95,6 +96,23 @@ pub struct PlaylistTrack {
     pub set_video_id: Option<String>,
     /// Type of video (e.g., "MUSIC_VIDEO_TYPE_OMV")
     pub video_type: Option<String>,
+}
+
+/// Result of moving items between playlists.
+#[derive(Debug, Clone)]
+pub struct MovePlaylistItemsResult {
+    /// Response from adding items to the destination playlist.
+    pub add_response: Value,
+    /// Response from removing items from the source playlist.
+    pub remove_response: Value,
+}
+
+/// Response from creating a playlist.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreatePlaylistResponse {
+    /// The newly created playlist ID.
+    #[serde(rename = "playlistId")]
+    pub playlist_id: String,
 }
 
 impl Default for Playlist {

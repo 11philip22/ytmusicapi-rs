@@ -35,6 +35,10 @@ pub enum Error {
     #[error("Invalid auth: {0}")]
     InvalidAuth(String),
 
+    /// Invalid input provided by caller
+    #[error("Invalid input: {0}")]
+    InvalidInput(String),
+
     /// I/O error
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),

@@ -2,3 +2,4 @@
 Cargo.lock
 *.json
 .env
+.DS_store

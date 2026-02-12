@@ -11,7 +11,42 @@ use crate::parsers::{
     get_continuation_token, parse_library_playlists, parse_playlist_response, parse_playlist_tracks,
 };
 use crate::path;
-use crate::types::{Playlist, PlaylistSummary, PlaylistTrack, Song};
+use crate::types::{
+    CreatePlaylistResponse, LikeStatus, MovePlaylistItemsResult, Playlist, PlaylistSummary,
+    PlaylistTrack, Privacy, Song,
+};
+
+fn validate_playlist_id(playlist_id: &str) -> &str {
+    playlist_id.strip_prefix("VL").unwrap_or(playlist_id)
+}
+
+fn status_succeeded(response: &Value) -> bool {
+    response
+        .get("status")
+        .and_then(|v| v.as_str())
+        .map(|s| s.contains("SUCCEEDED"))
+        .unwrap_or(false)
+}
+
+fn collect_movable_items(items: &[PlaylistTrack]) -> Result<(Vec<String>, Vec<PlaylistTrack>)> {
+    let mut video_ids = Vec::new();
+    let mut removable = Vec::new();
+
+    for item in items {
+        if let (Some(video_id), Some(_set_video_id)) = (&item.video_id, &item.set_video_id) {
+            video_ids.push(video_id.clone());
+            removable.push(item.clone());
+        }
+    }
+
+    if video_ids.is_empty() {
+        return Err(Error::InvalidInput(
+            "No playlist items include both video_id and set_video_id".to_string(),
+        ));
+    }
+
+    Ok((video_ids, removable))
+}
 
 /// The main YouTube Music API client.
 ///
@@ -181,6 +216,59 @@ impl YTMusicClient {
         self.get_playlist("LM", limit).await
     }
 
+    /// Create a new playlist.
+    pub async fn create_playlist(
+        &self,
+        title: &str,
+        description: Option<&str>,
+        privacy: Privacy,
+    ) -> Result<CreatePlaylistResponse> {
+        self.check_auth()?;
+        if title.trim().is_empty() {
+            return Err(Error::InvalidInput(
+                "title must include at least one character".to_string(),
+            ));
+        }
+
+        let privacy_status = match privacy {
+            Privacy::Public => "PUBLIC",
+            Privacy::Private => "PRIVATE",
+            Privacy::Unlisted => "UNLISTED",
+        };
+
+        let mut body = json!({
+            "title": title,
+            "privacyStatus": privacy_status
+        });
+
+        if let Some(desc) = description {
+            if !desc.trim().is_empty() {
+                body["description"] = json!(desc);
+            }
+        }
+
+        let response = self.send_request("playlist/create", body).await?;
+        let created: CreatePlaylistResponse = serde_json::from_value(response)?;
+        Ok(created)
+    }
+
+    /// Delete a playlist.
+    pub async fn delete_playlist(&self, playlist_id: &str) -> Result<()> {
+        self.check_auth()?;
+        if playlist_id.trim().is_empty() {
+            return Err(Error::InvalidInput(
+                "playlist_id must include at least one character".to_string(),
+            ));
+        }
+
+        let body = json!({
+            "playlistId": validate_playlist_id(playlist_id)
+        });
+
+        self.send_request("playlist/delete", body).await?;
+        Ok(())
+    }
+
     /// Get song metadata (including genre/category).
     pub async fn get_song(&self, video_id: &str) -> Result<Song> {
         let body = json!({
@@ -195,6 +283,134 @@ impl YTMusicClient {
         let response = self.send_request("player", body).await?;
         let song: Song = serde_json::from_value(response)?;
         Ok(song)
+    }
+
+    /// Rate a song (like/dislike/indifferent).
+    pub async fn rate_song(&self, video_id: &str, rating: LikeStatus) -> Result<Value> {
+        self.check_auth()?;
+
+        let body = json!({
+            "target": {
+                "videoId": video_id
+            }
+        });
+
+        self.send_request(rating.endpoint(), body).await
+    }
+
+    /// Like a song.
+    pub async fn like_song(&self, video_id: &str) -> Result<Value> {
+        self.rate_song(video_id, LikeStatus::Like).await
+    }
+
+    /// Remove like/dislike from a song.
+    pub async fn unlike_song(&self, video_id: &str) -> Result<Value> {
+        self.rate_song(video_id, LikeStatus::Indifferent).await
+    }
+
+    /// Add items to a playlist by video ID.
+    pub async fn add_playlist_items(
+        &self,
+        playlist_id: &str,
+        video_ids: &[String],
+        allow_duplicates: bool,
+    ) -> Result<Value> {
+        self.check_auth()?;
+        if video_ids.is_empty() {
+            return Err(Error::InvalidInput(
+                "video_ids must include at least one item".to_string(),
+            ));
+        }
+
+        let mut actions = Vec::new();
+        for video_id in video_ids {
+            let mut action = json!({
+                "action": "ACTION_ADD_VIDEO",
+                "addedVideoId": video_id
+            });
+            if allow_duplicates {
+                action["dedupeOption"] = json!("DEDUPE_OPTION_SKIP");
+            }
+            actions.push(action);
+        }
+
+        let body = json!({
+            "playlistId": validate_playlist_id(playlist_id),
+            "actions": actions
+        });
+
+        self.send_request("browse/edit_playlist", body).await
+    }
+
+    /// Remove items from a playlist using playlist track metadata.
+    pub async fn remove_playlist_items(
+        &self,
+        playlist_id: &str,
+        items: &[PlaylistTrack],
+    ) -> Result<Value> {
+        self.check_auth()?;
+
+        let mut actions = Vec::new();
+        for item in items {
+            if let (Some(set_video_id), Some(video_id)) = (&item.set_video_id, &item.video_id) {
+                actions.push(json!({
+                    "action": "ACTION_REMOVE_VIDEO",
+                    "setVideoId": set_video_id,
+                    "removedVideoId": video_id
+                }));
+            }
+        }
+
+        if actions.is_empty() {
+            return Err(Error::InvalidInput(
+                "No playlist items include both video_id and set_video_id".to_string(),
+            ));
+        }
+
+        let body = json!({
+            "playlistId": validate_playlist_id(playlist_id),
+            "actions": actions
+        });
+
+        self.send_request("browse/edit_playlist", body).await
+    }
+
+    /// Move items from one playlist to another (add to destination, then remove from source).
+    pub async fn move_playlist_items(
+        &self,
+        from_playlist_id: &str,
+        to_playlist_id: &str,
+        items: &[PlaylistTrack],
+        allow_duplicates: bool,
+    ) -> Result<MovePlaylistItemsResult> {
+        self.check_auth()?;
+        let (video_ids, removable_items) = collect_movable_items(items)?;
+
+        let add_response = self
+            .add_playlist_items(to_playlist_id, &video_ids, allow_duplicates)
+            .await?;
+        if !status_succeeded(&add_response) {
+            let status = add_response
+                .get("status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("Unknown status");
+            return Err(Error::Server {
+                status: 500,
+                message: format!(
+                    "Failed to add items to destination playlist: {}",
+                    status
+                ),
+            });
+        }
+
+        let remove_response = self
+            .remove_playlist_items(from_playlist_id, &removable_items)
+            .await?;
+
+        Ok(MovePlaylistItemsResult {
+            add_response,
+            remove_response,
+        })
     }
 
     /// Fetch additional tracks via continuation token.

@@ -2,6 +2,28 @@
 
 use serde::{Deserialize, Serialize};
 
+/// Like/Dislike status for rating a song or playlist.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "UPPERCASE")]
+pub enum LikeStatus {
+    /// Thumbs up / like
+    Like,
+    /// Thumbs down / dislike
+    Dislike,
+    /// Remove any existing rating
+    Indifferent,
+}
+
+impl LikeStatus {
+    pub(crate) fn endpoint(self) -> &'static str {
+        match self {
+            LikeStatus::Like => "like/like",
+            LikeStatus::Dislike => "like/dislike",
+            LikeStatus::Indifferent => "like/removelike",
+        }
+    }
+}
+
 /// A thumbnail image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Thumbnail {

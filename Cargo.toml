@@ -1,12 +1,13 @@
 [package]
 name = "ytmusicapi"
 version = "0.4.0"
-edition = "2021"
+edition = "2024"
 description = "Rust client for YouTube Music API - playlist reading focused"
 license = "MIT"
 keywords = ["youtube", "music", "api", "ytmusic", "youtube-music"]
 categories = ["api-bindings", "multimedia::audio", "web-programming::http-client"]
 repository = "https://github.com/11philip22/ytmusicapi-rs"
+documentation = "https://docs.rs/ytmusicapi"
 
 [dependencies]
 reqwest = { version = "0.12", features = ["json", "cookies", "gzip"] }

@@ -31,13 +31,18 @@ impl From<usize> for PathSegment {
 ///
 /// # Example
 ///
-/// ```ignore
+/// ```
 /// use serde_json::json;
-/// use ytmusicapi::nav::{nav, PathSegment};
+/// use ytmusicapi::{nav::nav, path};
 ///
-/// let data = json!({"foo": [{"bar": "baz"}]});
-/// let result = nav(&data, &["foo".into(), 0.into(), "bar".into()]);
-/// assert_eq!(result.and_then(|v| v.as_str()), Some("baz"));
+/// let data = json!({
+///     "contents": [
+///         { "title": { "text": "Hello" } }
+///     ]
+/// });
+/// let title = nav(&data, &path!["contents", 0, "title", "text"])
+///     .and_then(|v| v.as_str());
+/// assert_eq!(title, Some("Hello"));
 /// ```
 pub fn nav<'a>(root: &'a Value, path: &[PathSegment]) -> Option<&'a Value> {
     let mut current = root;
@@ -82,14 +87,6 @@ pub fn nav_bool(root: &Value, path: &[PathSegment]) -> Option<bool> {
 
 /// Macro for creating a path from mixed key/index values.
 ///
-/// # Example
-///
-/// ```ignore
-/// use ytmusicapi::path;
-/// use ytmusicapi::nav::PathSegment;
-///
-/// let p: Vec<PathSegment> = path!["contents", 0, "title"];
-/// ```
 #[macro_export]
 macro_rules! path {
     ($($segment:expr),* $(,)?) => {

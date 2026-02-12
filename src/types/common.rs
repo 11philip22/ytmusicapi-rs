@@ -2,15 +2,15 @@
 
 use serde::{Deserialize, Serialize};
 
-/// Like/Dislike status for rating a song or playlist.
+/// Rating status for a song.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum LikeStatus {
-    /// Thumbs up / like
+    /// Thumbs up / like.
     Like,
-    /// Thumbs down / dislike
+    /// Thumbs down / dislike.
     Dislike,
-    /// Remove any existing rating
+    /// Remove any existing rating.
     Indifferent,
 }
 
@@ -27,37 +27,37 @@ impl LikeStatus {
 /// A thumbnail image.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Thumbnail {
-    /// URL of the thumbnail
+    /// URL of the thumbnail.
     pub url: String,
-    /// Width in pixels
+    /// Width in pixels, if provided by the API.
     pub width: Option<u32>,
-    /// Height in pixels
+    /// Height in pixels, if provided by the API.
     pub height: Option<u32>,
 }
 
 /// An artist reference.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Artist {
-    /// Artist name
+    /// Artist name.
     pub name: String,
-    /// Artist ID (browse ID), may be None for some artists
+    /// Artist browse ID, if available.
     pub id: Option<String>,
 }
 
 /// An album reference.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Album {
-    /// Album name
+    /// Album name.
     pub name: String,
-    /// Album ID (browse ID)
+    /// Album browse ID, if available.
     pub id: Option<String>,
 }
 
 /// Author of a playlist.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Author {
-    /// Author name
+    /// Author name.
     pub name: String,
-    /// Author channel ID
+    /// Author channel browse ID, if available.
     pub id: Option<String>,
 }

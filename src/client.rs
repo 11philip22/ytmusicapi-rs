@@ -50,7 +50,9 @@ fn collect_movable_items(items: &[PlaylistTrack]) -> Result<(Vec<String>, Vec<Pl
 
 /// The main YouTube Music API client.
 ///
-/// Use [`YTMusicClient::builder()`] to create a new instance.
+/// Construct with [`YTMusicClient::builder()`]. Methods that require
+/// authentication return [`Error::AuthRequired`](crate::Error::AuthRequired) if
+/// no [`BrowserAuth`] is configured.
 pub struct YTMusicClient {
     http: reqwest::Client,
     auth: Option<BrowserAuth>,
@@ -69,6 +71,11 @@ pub struct YTMusicClientBuilder {
 
 impl YTMusicClient {
     /// Create a new client builder.
+    ///
+    /// Defaults:
+    /// - language: `"en"`
+    /// - location: `None`
+    /// - user: `None`
     pub fn builder() -> YTMusicClientBuilder {
         YTMusicClientBuilder {
             auth: None,
@@ -78,18 +85,22 @@ impl YTMusicClient {
         }
     }
 
-    /// Check if the client is authenticated.
+    /// Check whether browser authentication is configured.
+    ///
+    /// This does not validate the cookie or perform a network request.
     pub fn is_authenticated(&self) -> bool {
         self.auth.is_some()
     }
 
-    /// Get all playlists from the user's library.
+    /// Get playlists from the user's library.
     ///
-    /// This fetches "Your Likes", "Albums", and user-created playlists.
+    /// Requires authentication. This currently fetches only the first page of
+    /// playlists returned by the web client and does not follow continuations.
     ///
     /// # Arguments
     ///
-    /// * `limit` - Maximum number of playlists to return. `None` for all.
+    /// * `limit` - Maximum number of playlists to return. `None` returns the
+    ///   entire first page.
     ///
     /// # Example
     ///
@@ -125,13 +136,15 @@ impl YTMusicClient {
 
     /// Get a playlist with its tracks.
     ///
-    /// Fetches metadata and tracks for a given playlist ID.
-    /// Automatically handles pagination to fetch all tracks if requested.
+    /// Fetches metadata and tracks for a given playlist ID. The client does not
+    /// enforce authentication, but private playlists may be rejected by the API.
+    /// If `limit` is `None`, the client follows continuations and returns up to
+    /// 5,000 tracks.
     ///
     /// # Arguments
     ///
     /// * `playlist_id` - The playlist ID (can be with or without `VL` prefix).
-    /// * `limit` - Maximum number of tracks to return. `None` for all (up to ~5000).
+    /// * `limit` - Maximum number of tracks to return. `None` for all (capped at 5,000).
     ///
     /// # Example
     ///
@@ -208,6 +221,8 @@ impl YTMusicClient {
 
     /// Get the "Liked Songs" playlist.
     ///
+    /// Requires authentication.
+    ///
     /// # Arguments
     ///
     /// * `limit` - Maximum number of tracks to return. `None` for all.
@@ -217,6 +232,8 @@ impl YTMusicClient {
     }
 
     /// Create a new playlist.
+    ///
+    /// Requires authentication. An empty `description` is omitted from the request.
     pub async fn create_playlist(
         &self,
         title: &str,
@@ -253,6 +270,8 @@ impl YTMusicClient {
     }
 
     /// Delete a playlist.
+    ///
+    /// Requires authentication. The ID may be provided with or without the `VL` prefix.
     pub async fn delete_playlist(&self, playlist_id: &str) -> Result<()> {
         self.check_auth()?;
         if playlist_id.trim().is_empty() {
@@ -269,7 +288,9 @@ impl YTMusicClient {
         Ok(())
     }
 
-    /// Get song metadata (including genre/category).
+    /// Get song metadata from the `player` endpoint.
+    ///
+    /// This does not require authentication and does not return stream URLs.
     pub async fn get_song(&self, video_id: &str) -> Result<Song> {
         let body = json!({
             "video_id": video_id,
@@ -286,6 +307,8 @@ impl YTMusicClient {
     }
 
     /// Rate a song (like/dislike/indifferent).
+    ///
+    /// Requires authentication. Returns the raw API response.
     pub async fn rate_song(&self, video_id: &str, rating: LikeStatus) -> Result<Value> {
         self.check_auth()?;
 
@@ -309,6 +332,10 @@ impl YTMusicClient {
     }
 
     /// Add items to a playlist by video ID.
+    ///
+    /// Requires authentication. When `allow_duplicates` is `true`, the request
+    /// includes `DEDUPE_OPTION_SKIP`, which instructs the API to skip videos that
+    /// are already present in the playlist.
     pub async fn add_playlist_items(
         &self,
         playlist_id: &str,
@@ -343,6 +370,9 @@ impl YTMusicClient {
     }
 
     /// Remove items from a playlist using playlist track metadata.
+    ///
+    /// Requires authentication. Only items with both `video_id` and `set_video_id`
+    /// are removed; if none qualify, this returns [`Error::InvalidInput`].
     pub async fn remove_playlist_items(
         &self,
         playlist_id: &str,
@@ -376,6 +406,9 @@ impl YTMusicClient {
     }
 
     /// Move items from one playlist to another (add to destination, then remove from source).
+    ///
+    /// Requires authentication. If the add succeeds but the remove fails, the
+    /// destination playlist is not rolled back.
     pub async fn move_playlist_items(
         &self,
         from_playlist_id: &str,
@@ -487,6 +520,17 @@ impl YTMusicClient {
     }
 
     /// Send a request to the YouTube Music API.
+    ///
+    /// This is a low-level helper that merges a client context into `body`,
+    /// performs a `POST`, and returns the raw JSON response.
+    ///
+    /// Error behavior:
+    /// - Surfaces network failures as [`Error::Http`](crate::Error::Http).
+    /// - Surfaces non-2xx responses or error payloads as [`Error::Server`](crate::Error::Server).
+    /// - Surfaces JSON decode failures as [`Error::Json`](crate::Error::Json).
+    ///
+    /// This crate does not configure timeouts, retries, or polling; any timeout
+    /// behavior comes from the underlying HTTP client defaults.
     pub async fn send_request(&self, endpoint: &str, mut body: Value) -> Result<Value> {
         // Merge context into body
         let context = create_context(
@@ -575,7 +619,7 @@ impl YTMusicClientBuilder {
 
     /// Set the language for responses.
     ///
-    /// Default is "en" (English).
+    /// This maps to the `hl` client parameter (default: `"en"`).
     pub fn with_language(mut self, language: impl Into<String>) -> Self {
         self.language = language.into();
         self
@@ -583,19 +627,24 @@ impl YTMusicClientBuilder {
 
     /// Set the location for results.
     ///
-    /// Use ISO 3166-1 alpha-2 country codes (e.g., "US", "GB", "DE").
+    /// This maps to the `gl` client parameter and expects ISO 3166-1 alpha-2
+    /// country codes (e.g., `"US"`, `"GB"`, `"DE"`).
     pub fn with_location(mut self, location: impl Into<String>) -> Self {
         self.location = Some(location.into());
         self
     }
 
     /// Set a user ID for brand account requests.
+    ///
+    /// This maps to `onBehalfOfUser` in the request context.
     pub fn with_user(mut self, user: impl Into<String>) -> Self {
         self.user = Some(user.into());
         self
     }
 
     /// Build the client.
+    ///
+    /// This does not validate authentication credentials.
     pub fn build(self) -> Result<YTMusicClient> {
         let mut headers = HeaderMap::new();
 

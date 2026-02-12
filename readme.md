@@ -156,6 +156,19 @@ cargo run --example playlist_items -- \
 
 This library is a Rust port of [ytmusicapi](https://github.com/sigma67/ytmusicapi).
 
+## Contributing
+
+PRs are welcome!  
+Please run `cargo fmt` and `cargo clippy` before submitting.
+
+If you’re changing behavior (e.g. stricter parsing), document it in the PR.
+
+## Support
+
+If this crate saves you time or helps your work, support is appreciated:
+
+[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/11philip22)
+
 ## License
 
-MIT License - see [license](license) for details.
+This project is licensed under the MIT License; see the [license](license) file for details.

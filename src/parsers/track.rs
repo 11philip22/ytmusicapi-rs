@@ -8,10 +8,10 @@ use crate::types::{Album, Artist};
 
 /// Parse duration string to seconds.
 ///
-/// # Examples
+/// # Example
 ///
-/// ```ignore
-/// use ytmusicapi::parsers::parse_duration;
+/// ```
+/// use ytmusicapi::parsers::track::parse_duration;
 ///
 /// assert_eq!(parse_duration("3:42"), Some(222));
 /// assert_eq!(parse_duration("1:23:45"), Some(5025));

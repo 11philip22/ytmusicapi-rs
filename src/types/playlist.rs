@@ -9,12 +9,12 @@ use super::{Album, Artist, Author, Thumbnail};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum Privacy {
-    /// Visible to everyone
+    /// Visible to everyone.
     #[default]
     Public,
-    /// Only visible to owner
+    /// Only visible to the owner.
     Private,
-    /// Visible to anyone with the link
+    /// Visible to anyone with the link.
     Unlisted,
 }
 
@@ -32,69 +32,69 @@ impl From<&str> for Privacy {
 /// Summary info for a playlist in a library listing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlaylistSummary {
-    /// Playlist ID
+    /// Playlist ID without the `VL` prefix.
     pub playlist_id: String,
-    /// Playlist title
+    /// Playlist title.
     pub title: String,
-    /// Thumbnail images
+    /// Thumbnail images.
     pub thumbnails: Vec<Thumbnail>,
-    /// Number of tracks (if available)
+    /// Number of tracks, if provided by the API.
     pub count: Option<u32>,
 }
 
 /// Full playlist with tracks.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Playlist {
-    /// Playlist ID
+    /// Playlist ID without the `VL` prefix.
     pub id: String,
-    /// Playlist title
+    /// Playlist title.
     pub title: String,
-    /// Description
+    /// Description.
     pub description: Option<String>,
-    /// Privacy setting
+    /// Privacy setting.
     pub privacy: Privacy,
-    /// Thumbnail images
+    /// Thumbnail images.
     pub thumbnails: Vec<Thumbnail>,
-    /// Author/creator of the playlist
+    /// Author/creator of the playlist, if available.
     pub author: Option<Author>,
-    /// Year created/updated
+    /// Year created/updated, if present in the response.
     pub year: Option<String>,
-    /// Human-readable duration (e.g., "2 hours")
+    /// Human-readable duration (e.g., `"2 hours"`), if present.
     pub duration: Option<String>,
-    /// Total duration in seconds
+    /// Total duration in seconds, computed from parsed tracks.
     pub duration_seconds: Option<u32>,
-    /// Number of tracks
+    /// Number of tracks, if provided by the API.
     pub track_count: Option<u32>,
-    /// Whether the current user owns this playlist
+    /// Whether the current user owns this playlist.
     pub owned: bool,
-    /// Playlist tracks
+    /// Playlist tracks.
     pub tracks: Vec<PlaylistTrack>,
 }
 
 /// A track within a playlist.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlaylistTrack {
-    /// Video ID (used for playback)
+    /// Video ID (used for playback), if available.
     pub video_id: Option<String>,
-    /// Track title
+    /// Track title, if available.
     pub title: Option<String>,
-    /// Artists
+    /// Artists.
     pub artists: Vec<Artist>,
-    /// Album info
+    /// Album info, if available.
     pub album: Option<Album>,
-    /// Human-readable duration (e.g., "3:42")
+    /// Human-readable duration (e.g., `"3:42"`), if available.
     pub duration: Option<String>,
-    /// Duration in seconds
+    /// Duration in seconds, if parsed successfully.
     pub duration_seconds: Option<u32>,
-    /// Thumbnail images
+    /// Thumbnail images.
     pub thumbnails: Vec<Thumbnail>,
-    /// Whether the track is available for playback
+    /// Whether the track is available for playback.
     pub is_available: bool,
-    /// Whether the track has explicit content
+    /// Whether the track has explicit content.
     pub is_explicit: bool,
-    /// Unique ID of this playlist item (for reordering/removing)
+    /// Unique playlist item ID used for removing/reordering.
     pub set_video_id: Option<String>,
-    /// Type of video (e.g., "MUSIC_VIDEO_TYPE_OMV")
+    /// Type of video (e.g., `"MUSIC_VIDEO_TYPE_OMV"`), if available.
     pub video_type: Option<String>,
 }
 

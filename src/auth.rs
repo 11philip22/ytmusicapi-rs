@@ -14,20 +14,23 @@ use crate::error::{Error, Result};
 ///
 /// This authentication method (mimicking a browser) is required for most
 /// authenticated operations like accessing your library or managing playlists.
+/// The cookie string must include `__Secure-3PAPISID`, which is used to compute
+/// the `SAPISIDHASH` authorization header.
 ///
 /// # Obtaining Credentials
 ///
-/// 1. Open [YouTube Music](https://music.youtube.com) in your browser and log in.
+/// 1. Open [YouTube Music](https://music.youtube.com) in your browser and sign in.
 /// 2. Open Developer Tools (F12) and go to the **Network** tab.
 /// 3. Filter for `browse` requests.
 /// 4. Reload the page if needed, and select a `browse` request (e.g. `browse?...`).
-/// 5. In the **Request Headers** section, find:
-///    - `Cookie`: The full cookie string.
+/// 5. In the **Request Headers** section, copy:
+///    - `cookie`: The full cookie string.
 ///    - `x-goog-authuser`: The auth user index (usually `0`).
 ///
 /// # Usage
 ///
-/// You can save these credentials to a JSON file (recommended) or create `BrowserAuth` directly.
+/// You can save these credentials to a JSON file (recommended) or construct
+/// `BrowserAuth` directly.
 ///
 /// **headers.json example:**
 /// ```json
@@ -36,16 +39,18 @@ use crate::error::{Error, Result};
 ///     "x-goog-authuser": "0"
 /// }
 /// ```
+///
+/// Keep this file private: it grants access to your account.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BrowserAuth {
-    /// The full cookie string from the browser
+    /// The full `cookie` header value from the browser.
     pub cookie: String,
 
-    /// The x-goog-authuser header value (usually "0")
+    /// The `x-goog-authuser` header value (usually `"0"`).
     #[serde(alias = "x-goog-authuser")]
     pub x_goog_authuser: String,
 
-    /// Optional origin header
+    /// Origin used when computing the authorization hash.
     #[serde(default = "default_origin")]
     pub origin: String,
 }
@@ -55,15 +60,19 @@ fn default_origin() -> String {
 }
 
 impl BrowserAuth {
-    /// Create BrowserAuth from a headers JSON file.
+    /// Create `BrowserAuth` from a headers JSON file.
     ///
-    /// The file should contain a JSON object with at least `cookie` and `x-goog-authuser` keys.
+    /// The file should contain a JSON object with at least a `cookie` key.
+    /// Header names are matched case-insensitively, and `x-goog-authuser`
+    /// defaults to `"0"` if omitted.
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
         Self::from_json(&content)
     }
 
-    /// Create BrowserAuth from a JSON string.
+    /// Create `BrowserAuth` from a JSON string.
+    ///
+    /// Accepts `cookie`, `x-goog-authuser`, and `origin` (case-insensitive).
     pub fn from_json(json: &str) -> Result<Self> {
         let parsed: serde_json::Value = serde_json::from_str(json)?;
 
@@ -98,7 +107,7 @@ impl BrowserAuth {
         })
     }
 
-    /// Extract the SAPISID from the cookie string.
+    /// Extract `__Secure-3PAPISID` from the cookie string.
     pub fn sapisid(&self) -> Result<String> {
         // Parse cookies to find __Secure-3PAPISID
         for part in self.cookie.split(';') {
@@ -112,9 +121,9 @@ impl BrowserAuth {
         ))
     }
 
-    /// Generate the SAPISIDHASH authorization header.
+    /// Generate the `SAPISIDHASH` authorization header.
     ///
-    /// This is a time-based hash that YouTube uses for authentication.
+    /// This is a time-based hash that YouTube uses for browser authentication.
     pub fn get_authorization(&self) -> Result<String> {
         let sapisid = self.sapisid()?;
         let timestamp = SystemTime::now()

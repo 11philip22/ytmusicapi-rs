@@ -109,8 +109,12 @@ async fn main() -> ytmusicapi::Result<()> {
 - `Playlist` - Full playlist with metadata and tracks
 - `PlaylistSummary` - Brief playlist info (for library listing)
 - `PlaylistTrack` - Track within a playlist
+- `CreatePlaylistResponse` - Response with newly created playlist ID
+- `MovePlaylistItemsResult` - Responses from moving items between playlists
+- `Privacy` - Playlist privacy enum (`PUBLIC`, `PRIVATE`, `UNLISTED`)
 - `LikeStatus` - Rating enum (`LIKE`, `DISLIKE`, `INDIFFERENT`)
-- `Artist`, `Album`, `Thumbnail` - Common types
+- `Song` - Song metadata from `get_song`
+- `Artist`, `Album`, `Author`, `Thumbnail` - Common types
 
 ## Examples
 

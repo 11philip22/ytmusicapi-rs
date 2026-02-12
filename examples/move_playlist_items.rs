@@ -1,9 +1,9 @@
-//! Example: Add, remove, and move playlist items.
+//! Example: Move items from one playlist to another.
 //!
 //! Usage:
 //! 1. Export your browser headers to `headers.json` (see README)
 //! 2. Run:
-//!    cargo run --example playlist_items -- \
+//!    cargo run --example move_playlist_items -- \
 //!      --source PLAYLIST_ID \
 //!      --dest PLAYLIST_ID \
 //!      --video-ids VIDEO_ID_1,VIDEO_ID_2 \
@@ -21,10 +21,6 @@ struct Args {
     video_ids: Option<String>,
     allow_duplicates: bool,
     show_help: bool,
-}
-
-fn parse_bool(value: &str) -> bool {
-    matches!(value.trim().to_lowercase().as_str(), "1" | "true" | "yes")
 }
 
 fn parse_video_ids(raw: &str) -> Vec<String> {
@@ -56,10 +52,6 @@ fn parse_args() -> Result<Args, String> {
             args.video_ids = Some(value.trim().to_string()).filter(|v| !v.is_empty());
             continue;
         }
-        if let Some(value) = arg.strip_prefix("--allow-duplicates=") {
-            args.allow_duplicates = parse_bool(value);
-            continue;
-        }
 
         match arg.as_str() {
             "--help" | "-h" => {
@@ -85,20 +77,9 @@ fn parse_args() -> Result<Args, String> {
                     .filter(|value| !value.is_empty());
             }
             "--allow-duplicates" | "-a" => {
-                if let Some(value) = iter.clone().next() {
-                    if value.starts_with('-') {
-                        args.allow_duplicates = true;
-                    } else {
-                        let _ = iter.next();
-                        args.allow_duplicates = parse_bool(&value);
-                    }
-                } else {
-                    args.allow_duplicates = true;
-                }
+                args.allow_duplicates = true;
             }
-            _ => {
-                return Err(format!("Unknown argument: {}", arg));
-            }
+            _ => return Err(format!("Unknown argument: {}", arg)),
         }
     }
 
@@ -107,7 +88,7 @@ fn parse_args() -> Result<Args, String> {
 
 fn print_usage() {
     eprintln!("Usage:");
-    eprintln!("  cargo run --example playlist_items -- \\\n    --source PLAYLIST_ID \\\n    --dest PLAYLIST_ID \\\n    --video-ids VIDEO_ID_1,VIDEO_ID_2 \\\n    [--allow-duplicates]");
+    eprintln!("  cargo run --example move_playlist_items -- \\\n    --source PLAYLIST_ID \\\n    --dest PLAYLIST_ID \\\n    --video-ids VIDEO_ID_1,VIDEO_ID_2 \\\n    [--allow-duplicates]");
 }
 
 fn collect_items(tracks: &[PlaylistTrack], video_ids: &HashSet<String>) -> Vec<PlaylistTrack> {
@@ -138,7 +119,7 @@ async fn main() -> ytmusicapi::Result<()> {
             eprintln!("3. Find any request to music.youtube.com");
             eprintln!("4. Copy the request headers and save as JSON");
             eprintln!("\nExample headers.json:");
-            eprintln!(r#"{{\"cookie\": \"...\", \"x-goog-authuser\": \"0\"}}"#);
+            eprintln!("{}", r#"{"cookie": "...", "x-goog-authuser": "0"}"#);
             return Ok(());
         }
     };
@@ -151,6 +132,7 @@ async fn main() -> ytmusicapi::Result<()> {
             return Ok(());
         }
     };
+
     if args.show_help {
         print_usage();
         return Ok(());
@@ -164,6 +146,7 @@ async fn main() -> ytmusicapi::Result<()> {
             return Ok(());
         }
     };
+
     let dest_playlist_id = match args.dest_playlist_id {
         Some(value) => value,
         None => {
@@ -172,6 +155,7 @@ async fn main() -> ytmusicapi::Result<()> {
             return Ok(());
         }
     };
+
     let raw_video_ids = match args.video_ids {
         Some(value) => value,
         None => {
@@ -187,72 +171,38 @@ async fn main() -> ytmusicapi::Result<()> {
     }
 
     let video_ids = parse_video_ids(&raw_video_ids);
-    if video_ids.len() < 2 {
-        eprintln!("Provide at least two video IDs to demonstrate remove and move.");
+    if video_ids.is_empty() {
+        eprintln!("Provide at least one video ID.");
         return Ok(());
     }
-
-    let allow_duplicates = args.allow_duplicates;
 
     let client = YTMusicClient::builder().with_browser_auth(auth).build()?;
 
-    println!(
-        "Adding {} items to source playlist {}...",
-        video_ids.len(),
-        source_playlist_id
-    );
-    let add_response = client
-        .add_playlist_items(&source_playlist_id, &video_ids, allow_duplicates)
-        .await?;
-    let add_status = add_response
-        .get("status")
-        .and_then(|value| value.as_str())
-        .unwrap_or("UNKNOWN");
-    println!("Add status: {}", add_status);
-
-    println!("Fetching playlist to locate added items...");
+    println!("Fetching source playlist to locate items...");
     let playlist = client.get_playlist(&source_playlist_id, None).await?;
 
     let video_id_set: HashSet<String> = video_ids.into_iter().collect();
-    let mut items = collect_items(&playlist.tracks, &video_id_set);
+    let items = collect_items(&playlist.tracks, &video_id_set);
 
-    if items.len() < 2 {
-        eprintln!("Could not find enough matching playlist items to continue.");
-        eprintln!("Try again with different video IDs.");
+    if items.is_empty() {
+        eprintln!("No matching playlist items found to move.");
         return Ok(());
     }
-
-    let remove_item = items.remove(0);
-    println!("Removing one item from the source playlist...");
-    let remove_response = client
-        .remove_playlist_items(&source_playlist_id, &[remove_item])
-        .await?;
-    let remove_status = remove_response
-        .get("status")
-        .and_then(|value| value.as_str())
-        .unwrap_or("UNKNOWN");
-    println!("Remove status: {}", remove_status);
 
     println!(
         "Moving {} items to destination playlist {}...",
         items.len(),
         dest_playlist_id
     );
-    let move_result = client
-        .move_playlist_items(&source_playlist_id, &dest_playlist_id, &items, allow_duplicates)
+    client
+        .move_playlist_items(
+            &source_playlist_id,
+            &dest_playlist_id,
+            &items,
+            args.allow_duplicates,
+        )
         .await?;
-    let move_add_status = move_result
-        .add_response
-        .get("status")
-        .and_then(|value| value.as_str())
-        .unwrap_or("UNKNOWN");
-    let move_remove_status = move_result
-        .remove_response
-        .get("status")
-        .and_then(|value| value.as_str())
-        .unwrap_or("UNKNOWN");
-    println!("Move add status: {}", move_add_status);
-    println!("Move remove status: {}", move_remove_status);
+    println!("Moved.");
 
     Ok(())
 }

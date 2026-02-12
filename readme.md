@@ -122,8 +122,21 @@ cargo run --example create_playlist -- \
   --title "My Playlist" \
   --description "Created via ytmusicapi-rs" \
   --privacy private
+cargo run --example add_song_to_playlist -- \
+  --playlist-id PLAYLIST_ID \
+  --video-id VIDEO_ID \
+  [--allow-duplicates]
+cargo run --example get_liked_songs -- [--limit 50]
 cargo run --example delete_playlist -- \
   --playlist-id PLAYLIST_ID
+cargo run --example remove_playlist_items -- \
+  --playlist-id PLAYLIST_ID \
+  --video-ids VIDEO_ID_1,VIDEO_ID_2
+cargo run --example move_playlist_items -- \
+  --source PLAYLIST_ID \
+  --dest PLAYLIST_ID \
+  --video-ids VIDEO_ID_1,VIDEO_ID_2 \
+  [--allow-duplicates]
 cargo run --example playlist_items -- \
   --source PLAYLIST_ID \
   --dest PLAYLIST_ID \

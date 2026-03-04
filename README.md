@@ -1,25 +1,33 @@
-# ytmusicapi-rs
+<p align="center">
+  <img src="assets/hero-banner.png" alt="hero pane" width="980">
+</p>
 
-[![Crates.io](https://img.shields.io/crates/v/ytmusicapi.svg)](https://crates.io/crates/ytmusicapi)
-[![Documentation](https://docs.rs/ytmusicapi/badge.svg)](https://docs.rs/ytmusicapi)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/woldp001/guerrillamail-client-rs/pulls)
+<p align="center">
+  <a href="https://crates.io/crates/ytmusicapi"><img src="https://img.shields.io/badge/crates.io-ytmusicapi-F59E0B?style=for-the-badge&logo=rust&logoColor=white" alt="Crates.io"></a>
+  <a href="https://docs.rs/ytmusicapi"><img src="https://img.shields.io/badge/docs.rs-ytmusicapi-3B82F6?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Documentation"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-8B5CF6?style=for-the-badge" alt="MIT License"></a>
+  <a href="https://github.com/woldp001/ytmusicapi-rs/pulls"><img src="https://img.shields.io/badge/PRs-Welcome-22C55E?style=for-the-badge" alt="PRs Welcome"></a>
+</p>
 
-<img src="https://upload.wikimedia.org/wikipedia/commons/1/1c/YouTube_Music_2024.svg" alt="ytmusicapi" width="300">
+<p align="center">
+  <a href="#features">Features</a> · <a href="#installation">Installation</a> · <a href="#quick-start">Quick Start</a> · <a href="#api-reference">API Reference</a> · <a href="#examples">Examples</a> · <a href="#contributing">Contributing</a> · <a href="#support">Support</a> · <a href="#license">License</a>
+</p>
 
 A Rust library for the YouTube Music API.
+
+---
 
 > [!NOTE]
 > 🚧 **Work in Progress**: search, uploads, and some library management features are not yet supported.
 
 ## Features
 
-- 🔐 **Browser cookie authentication**
-- 📋 **Playlist APIs**: List library playlists, get playlist tracks
-- ✏️ **Playlist edits**: Add/remove/move tracks between playlists
-- ❤️ **Likes**: Like and unlike songs
-- 📄 **Pagination**: Automatic handling of large playlists
-- 🦀 **Idiomatic Rust**: Builder pattern, strong typing, async/await
+- **Browser cookie authentication**
+- **Playlist APIs**: List library playlists, get playlist tracks
+- **Playlist edits**: Add/remove/move tracks between playlists
+- **Likes**: Like and unlike songs
+- **Pagination**: Automatic handling of large playlists
+- **Idiomatic Rust**: Builder pattern, strong typing, async/await
 
 ## Installation
 
@@ -92,17 +100,31 @@ async fn main() -> ytmusicapi::Result<()> {
 
 | Method | Description |
 |--------|-------------|
+| `builder()` | Create a `YTMusicClientBuilder` with defaults |
+| `is_authenticated()` | Check whether browser auth is configured |
 | `get_library_playlists(limit)` | Get all playlists from your library |
 | `get_playlist(id, limit)` | Get a playlist with its tracks |
 | `get_liked_songs(limit)` | Get your liked songs playlist |
 | `create_playlist(title, description, privacy)` | Create a new playlist |
 | `delete_playlist(id)` | Delete a playlist |
+| `get_song(video_id)` | Get song metadata from the `player` endpoint |
 | `add_playlist_items(id, video_ids, allow_duplicates)` | Add videos to a playlist |
 | `remove_playlist_items(id, tracks)` | Remove playlist items (requires `set_video_id`) |
 | `move_playlist_items(from, to, tracks, allow_duplicates)` | Move items between playlists |
 | `rate_song(video_id, rating)` | Like/dislike/clear rating for a song |
 | `like_song(video_id)` | Like a song |
 | `unlike_song(video_id)` | Remove like/dislike from a song |
+| `send_request(endpoint, body)` | Low-level API helper that sends a raw request and returns JSON |
+
+### `YTMusicClientBuilder`
+
+| Method | Description |
+|--------|-------------|
+| `with_browser_auth(auth)` | Configure browser-cookie authentication |
+| `with_language(language)` | Set request language (default: `en`) |
+| `with_location(location)` | Set location hint |
+| `with_user(user)` | Set user profile index |
+| `build()` | Build and validate a `YTMusicClient` instance |
 
 ### Types
 
@@ -114,6 +136,7 @@ async fn main() -> ytmusicapi::Result<()> {
 - `Privacy` - Playlist privacy enum (`PUBLIC`, `PRIVATE`, `UNLISTED`)
 - `LikeStatus` - Rating enum (`LIKE`, `DISLIKE`, `INDIFFERENT`)
 - `Song` - Song metadata from `get_song`
+- `VideoDetails`, `Microformat`, `MicroformatDataRenderer` - Song metadata subtypes
 - `Artist`, `Album`, `Author`, `Thumbnail` - Common types
 
 ## Examples
@@ -171,4 +194,4 @@ If this crate saves you time or helps your work, support is appreciated:
 
 ## License
 
-This project is licensed under the MIT License; see the [license](license) file for details.
+This project is licensed under the MIT License; see the [license](https://opensource.org/licenses/MIT) for details.

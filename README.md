@@ -1,62 +1,71 @@
+<h1 align="center">ytmusicapi</h1>
+
 <p align="center">
-  <img src="assets/hero-banner.png" alt="hero pane" width="980">
+  <strong>Unofficial async Rust client for YouTube Music playlist and library workflows.</strong>
 </p>
 
 <p align="center">
-  <a href="https://crates.io/crates/ytmusicapi"><img src="https://img.shields.io/badge/crates.io-ytmusicapi-F59E0B?style=for-the-badge&logo=rust&logoColor=white" alt="Crates.io"></a>
-  <a href="https://docs.rs/ytmusicapi"><img src="https://img.shields.io/badge/docs.rs-ytmusicapi-3B82F6?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Documentation"></a>
-  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-8B5CF6?style=for-the-badge" alt="MIT License"></a>
-  <a href="https://github.com/woldp001/ytmusicapi-rs/pulls"><img src="https://img.shields.io/badge/PRs-Welcome-22C55E?style=for-the-badge" alt="PRs Welcome"></a>
+  <a href="https://crates.io/crates/ytmusicapi"><img src="https://img.shields.io/crates/v/ytmusicapi?style=flat-square&logo=rust" alt="Crates.io"></a>
+  <a href="https://docs.rs/ytmusicapi"><img src="https://img.shields.io/docsrs/ytmusicapi?style=flat-square&logo=readthedocs" alt="Documentation"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue?style=flat-square" alt="License"></a>
 </p>
 
 <p align="center">
-  <a href="#features">Features</a> · <a href="#installation">Installation</a> · <a href="#quick-start">Quick Start</a> · <a href="#api-reference">API Reference</a> · <a href="#examples">Examples</a> · <a href="#contributing">Contributing</a> · <a href="#support">Support</a> · <a href="#license">License</a>
+  <a href="#overview">Overview</a> &middot;
+  <a href="#getting-started">Getting Started</a> &middot;
+  <a href="#examples">Examples</a> &middot;
+  <a href="#api-surface">API Surface</a> &middot;
+  <a href="#development">Development</a>
 </p>
 
-A Rust library for the YouTube Music API.
+## Overview
 
----
+`ytmusicapi` wraps the YouTube Music web client's YouTubei endpoints with typed Rust models, browser-cookie authentication, and async `reqwest` requests. It is useful for tools that need to inspect a YouTube Music library, read playlist contents, create playlists, move tracks, or update likes from Rust.
 
 > [!NOTE]
-> 🚧 **Work in Progress**: search, uploads, and some library management features are not yet supported.
+> This crate uses an unofficial internal API. YouTube Music can change these endpoints without notice, so callers should handle server and parsing errors as part of normal operation.
 
 ## Features
 
-- **Browser cookie authentication**
-- **Playlist APIs**: List library playlists, get playlist tracks
-- **Playlist edits**: Add/remove/move tracks between playlists
-- **Likes**: Like and unlike songs
-- **Pagination**: Automatic handling of large playlists
-- **Idiomatic Rust**: Builder pattern, strong typing, async/await
+- Browser-cookie authentication with generated `SAPISIDHASH` authorization headers.
+- Library playlist listing and playlist metadata fetching.
+- Playlist track pagination, capped at 5,000 tracks when no explicit limit is supplied.
+- Playlist creation, deletion, item add, item removal, and item moves.
+- Liked songs access and song rating helpers.
+- Unauthenticated song metadata lookup through the `player` endpoint.
+- Typed playlist, track, artist, album, thumbnail, song, and error models.
 
-## Installation
+## Getting Started
 
-Add to your `Cargo.toml`:
+Add the crate and Tokio runtime to your project:
 
 ```toml
 [dependencies]
-ytmusicapi = { version = "0.3.0" }
+ytmusicapi = "0.4"
 tokio = { version = "1", features = ["rt-multi-thread", "macros"] }
 ```
 
-## Quick Start
+### Authentication
 
-### 1. Get Your Browser Headers
+Most library and playlist management operations require browser headers from a signed-in YouTube Music session.
 
-1. Open [YouTube Music](https://music.youtube.com) in your browser and log in
-2. Open Developer Tools (F12) → Network tab
-3. Find any request to `music.youtube.com`
-4. Copy the `cookie` and `x-goog-authuser` headers
-5. Save as `headers.json`:
+1. Open [YouTube Music](https://music.youtube.com) and sign in.
+2. Open Developer Tools and select the Network tab.
+3. Filter for a `browse` request to `music.youtube.com`.
+4. Copy the full `cookie` request header and the `x-goog-authuser` header.
+5. Save them as `headers.json`.
 
 ```json
 {
-  "cookie": "__Secure-3PAPISID=...; other_cookies...",
+  "cookie": "SID=...; __Secure-3PAPISID=...; ...",
   "x-goog-authuser": "0"
 }
 ```
 
-### 2. Use the Library
+> [!IMPORTANT]
+> Keep `headers.json` private. The cookie grants access to your account, and it must include `__Secure-3PAPISID` for authenticated requests.
+
+### Quick Start
 
 ```rust
 use ytmusicapi::{BrowserAuth, YTMusicClient};
@@ -64,134 +73,79 @@ use ytmusicapi::{BrowserAuth, YTMusicClient};
 #[tokio::main]
 async fn main() -> ytmusicapi::Result<()> {
     let auth = BrowserAuth::from_file("headers.json")?;
-    
     let client = YTMusicClient::builder()
         .with_browser_auth(auth)
         .build()?;
 
-    // List all playlists
-    let playlists = client.get_library_playlists(None).await?;
-    for pl in &playlists {
-        println!("{}: {}", pl.playlist_id, pl.title);
+    let playlists = client.get_library_playlists(Some(10)).await?;
+    for playlist in playlists {
+        println!("{}: {}", playlist.playlist_id, playlist.title);
     }
-
-    // Get a specific playlist with tracks
-    let playlist = client.get_playlist("PLxxxxxx", None).await?;
-    for track in &playlist.tracks {
-        println!("{} - {}", 
-            track.artists.first().map(|a| a.name.as_str()).unwrap_or("Unknown"),
-            track.title.as_deref().unwrap_or("Unknown"));
-    }
-
-    // Get liked songs
-    let liked = client.get_liked_songs(Some(50)).await?;
-    println!("You have {} liked songs", liked.tracks.len());
-
-    // Like a song
-    client.like_song("VIDEO_ID").await?;
 
     Ok(())
 }
 ```
 
-## API Reference
+Song metadata can be fetched without browser authentication:
 
-### `YTMusicClient`
+```rust
+use ytmusicapi::YTMusicClient;
 
-| Method | Description |
-|--------|-------------|
-| `builder()` | Create a `YTMusicClientBuilder` with defaults |
-| `is_authenticated()` | Check whether browser auth is configured |
-| `get_library_playlists(limit)` | Get all playlists from your library |
-| `get_playlist(id, limit)` | Get a playlist with its tracks |
-| `get_liked_songs(limit)` | Get your liked songs playlist |
-| `create_playlist(title, description, privacy)` | Create a new playlist |
-| `delete_playlist(id)` | Delete a playlist |
-| `get_song(video_id)` | Get song metadata from the `player` endpoint |
-| `add_playlist_items(id, video_ids, allow_duplicates)` | Add videos to a playlist |
-| `remove_playlist_items(id, tracks)` | Remove playlist items (requires `set_video_id`) |
-| `move_playlist_items(from, to, tracks, allow_duplicates)` | Move items between playlists |
-| `rate_song(video_id, rating)` | Like/dislike/clear rating for a song |
-| `like_song(video_id)` | Like a song |
-| `unlike_song(video_id)` | Remove like/dislike from a song |
-| `send_request(endpoint, body)` | Low-level API helper that sends a raw request and returns JSON |
+#[tokio::main]
+async fn main() -> ytmusicapi::Result<()> {
+    let client = YTMusicClient::builder().build()?;
+    let song = client.get_song("dQw4w9WgXcQ").await?;
 
-### `YTMusicClientBuilder`
-
-| Method | Description |
-|--------|-------------|
-| `with_browser_auth(auth)` | Configure browser-cookie authentication |
-| `with_language(language)` | Set request language (default: `en`) |
-| `with_location(location)` | Set location hint |
-| `with_user(user)` | Set user profile index |
-| `build()` | Build and validate a `YTMusicClient` instance |
-
-### Types
-
-- `Playlist` - Full playlist with metadata and tracks
-- `PlaylistSummary` - Brief playlist info (for library listing)
-- `PlaylistTrack` - Track within a playlist
-- `CreatePlaylistResponse` - Response with newly created playlist ID
-- `MovePlaylistItemsResult` - Responses from moving items between playlists
-- `Privacy` - Playlist privacy enum (`PUBLIC`, `PRIVATE`, `UNLISTED`)
-- `LikeStatus` - Rating enum (`LIKE`, `DISLIKE`, `INDIFFERENT`)
-- `Song` - Song metadata from `get_song`
-- `VideoDetails`, `Microformat`, `MicroformatDataRenderer` - Song metadata subtypes
-- `Artist`, `Album`, `Author`, `Thumbnail` - Common types
+    println!("{} by {}", song.video_details.title, song.video_details.author);
+    Ok(())
+}
+```
 
 ## Examples
 
-Run the examples:
+The checked-in examples expect `headers.json` in the repository root for authenticated operations.
 
 ```bash
 cargo run --example list_playlists
-cargo run --example create_playlist -- \
-  --title "My Playlist" \
-  --description "Created via ytmusicapi-rs" \
-  --privacy private
-cargo run --example add_song_to_playlist -- \
-  --playlist-id PLAYLIST_ID \
-  --video-id VIDEO_ID \
-  [--allow-duplicates]
-cargo run --example get_liked_songs -- [--limit 50]
-cargo run --example like_song -- \
-  --video-id VIDEO_ID
-cargo run --example unlike_song -- \
-  --video-id VIDEO_ID
-cargo run --example delete_playlist -- \
-  --playlist-id PLAYLIST_ID
-cargo run --example remove_playlist_items -- \
-  --playlist-id PLAYLIST_ID \
-  --video-ids VIDEO_ID_1,VIDEO_ID_2
-cargo run --example move_playlist_items -- \
-  --source PLAYLIST_ID \
-  --dest PLAYLIST_ID \
-  --video-ids VIDEO_ID_1,VIDEO_ID_2 \
-  [--allow-duplicates]
-cargo run --example playlist_items -- \
-  --source PLAYLIST_ID \
-  --dest PLAYLIST_ID \
-  --video-ids VIDEO_ID_1,VIDEO_ID_2 \
-  [--allow-duplicates]
+cargo run --example get_liked_songs -- --limit 50
+cargo run --example create_playlist -- --title "My Playlist" --privacy private
+cargo run --example add_song_to_playlist -- --playlist-id PLAYLIST_ID --video-id VIDEO_ID
+cargo run --example remove_playlist_items -- --playlist-id PLAYLIST_ID --video-ids VIDEO_ID_1,VIDEO_ID_2
+cargo run --example move_playlist_items -- --source PLAYLIST_ID --dest PLAYLIST_ID --video-ids VIDEO_ID_1,VIDEO_ID_2
+cargo run --example like_song -- --video-id VIDEO_ID
+cargo run --example unlike_song -- --video-id VIDEO_ID
+cargo run --example delete_playlist -- --playlist-id PLAYLIST_ID
 ```
 
-## Acknowledgements
+## API Surface
 
-This library is a Rust port of [ytmusicapi](https://github.com/sigma67/ytmusicapi).
+| Area | Methods |
+| --- | --- |
+| Client setup | `YTMusicClient::builder`, `is_authenticated` |
+| Playlists | `get_library_playlists`, `get_playlist`, `create_playlist`, `delete_playlist` |
+| Playlist items | `add_playlist_items`, `remove_playlist_items`, `move_playlist_items` |
+| Songs | `get_song`, `get_liked_songs`, `rate_song`, `like_song`, `unlike_song` |
+| Configuration | `with_browser_auth`, `with_language`, `with_location`, `with_user` |
+| Low-level access | `send_request` |
 
-## Contributing
+Common exported types include `BrowserAuth`, `Playlist`, `PlaylistSummary`, `PlaylistTrack`, `Privacy`, `LikeStatus`, `Song`, `Artist`, `Album`, `Thumbnail`, `Error`, and `Result`.
 
-PRs are welcome!  
-Please run `cargo fmt` and `cargo clippy` before submitting.
+## Caveats
 
-If you’re changing behavior (e.g. stricter parsing), document it in the PR.
+- Authenticated methods return `Error::AuthRequired` when no `BrowserAuth` is configured.
+- `get_song` returns metadata only, not stream URLs.
+- `get_library_playlists` currently reads the first library page and applies the requested limit locally.
+- The client does not add automatic retries or custom request timeouts.
+- Private or account-specific data depends on the validity of the supplied browser cookies.
 
-## Support
+## Development
 
-If this crate saves you time or helps your work, support is appreciated:
+```bash
+cargo fmt
+cargo clippy --all-targets
+cargo test
+```
 
-[![Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/11philip22)
+## Acknowledgement
 
-## License
-
-This project is licensed under the MIT License; see the [license](https://opensource.org/licenses/MIT) for details.
+This project is inspired by the Python [ytmusicapi](https://github.com/sigma67/ytmusicapi) project.

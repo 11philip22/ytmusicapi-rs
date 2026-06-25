@@ -2,6 +2,7 @@
 //!
 //! This module handles authentication using cookies extracted from a browser session.
 
+use std::collections::HashMap;
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -75,28 +76,25 @@ impl BrowserAuth {
     /// Accepts `cookie`, `x-goog-authuser`, and `origin` (case-insensitive).
     pub fn from_json(json: &str) -> Result<Self> {
         let parsed: serde_json::Value = serde_json::from_str(json)?;
+        let object = parsed
+            .as_object()
+            .ok_or_else(|| Error::InvalidAuth("headers must be a JSON object".to_string()))?;
 
-        // Handle case-insensitive header names
-        let cookie = parsed
-            .get("cookie")
-            .or_else(|| parsed.get("Cookie"))
-            .and_then(|v| v.as_str())
+        let headers: HashMap<String, &serde_json::Value> = object
+            .iter()
+            .map(|(key, value)| (key.to_ascii_lowercase(), value))
+            .collect();
+
+        let header_str = |key: &str| headers.get(key).and_then(|v| v.as_str());
+
+        let cookie = header_str("cookie")
             .ok_or_else(|| Error::InvalidAuth("missing 'cookie' field".to_string()))?
             .to_string();
 
-        let x_goog_authuser = parsed
-            .get("x-goog-authuser")
-            .or_else(|| parsed.get("X-Goog-Authuser"))
-            .and_then(|v| v.as_str())
-            .unwrap_or("0")
-            .to_string();
+        let x_goog_authuser = header_str("x-goog-authuser").unwrap_or("0").to_string();
 
-        let origin = parsed
-            .get("origin")
-            .or_else(|| parsed.get("Origin"))
-            .or_else(|| parsed.get("x-origin"))
-            .or_else(|| parsed.get("X-Origin"))
-            .and_then(|v| v.as_str())
+        let origin = header_str("origin")
+            .or_else(|| header_str("x-origin"))
             .unwrap_or("https://music.youtube.com")
             .to_string();
 
@@ -161,5 +159,33 @@ mod tests {
         let json = r#"{"cookie": "test=1; __Secure-3PAPISID=xyz", "x-goog-authuser": "0"}"#;
         let auth = BrowserAuth::from_json(json).unwrap();
         assert_eq!(auth.sapisid().unwrap(), "xyz");
+    }
+
+    #[test]
+    fn test_from_json_case_insensitive_headers() {
+        let json = r#"{
+            "CoOkIe": "test=1; __Secure-3PAPISID=xyz",
+            "X-GOOG-AUTHUSER": "1",
+            "X-Origin": "https://example.com"
+        }"#;
+        let auth = BrowserAuth::from_json(json).unwrap();
+        assert_eq!(auth.sapisid().unwrap(), "xyz");
+        assert_eq!(auth.x_goog_authuser, "1");
+        assert_eq!(auth.origin, "https://example.com");
+    }
+
+    #[test]
+    fn test_from_json_defaults_authuser() {
+        let json = r#"{"cookie": "test=1; __Secure-3PAPISID=xyz"}"#;
+        let auth = BrowserAuth::from_json(json).unwrap();
+        assert_eq!(auth.x_goog_authuser, "0");
+    }
+
+    #[test]
+    fn test_from_json_requires_cookie() {
+        assert!(matches!(
+            BrowserAuth::from_json("{}"),
+            Err(Error::InvalidAuth(_))
+        ));
     }
 }

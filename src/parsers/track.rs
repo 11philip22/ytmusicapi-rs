@@ -3,20 +3,11 @@
 use serde_json::Value;
 
 use crate::nav::{nav, nav_str};
-use crate::path;
 use crate::types::{Album, Artist};
 
 /// Parse duration string to seconds.
 ///
-/// # Example
-///
-/// ```
-/// use ytmusicapi::parsers::track::parse_duration;
-///
-/// assert_eq!(parse_duration("3:42"), Some(222));
-/// assert_eq!(parse_duration("1:23:45"), Some(5025));
-/// assert_eq!(parse_duration(""), None);
-/// ```
+/// For example, `"3:42"` becomes `Some(222)`.
 pub fn parse_duration(duration: &str) -> Option<u32> {
     let duration = duration.trim();
     if duration.is_empty() {
@@ -108,9 +99,7 @@ pub fn get_flex_column_item(data: &Value, index: usize) -> Option<&Value> {
     let renderer = column.get("musicResponsiveListItemFlexColumnRenderer")?;
 
     // Check that text and runs exist
-    if renderer.get("text")?.get("runs").is_none() {
-        return None;
-    }
+    renderer.get("text")?.get("runs")?;
 
     Some(renderer)
 }

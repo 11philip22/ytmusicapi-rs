@@ -99,6 +99,12 @@
 //! **External system failures:** because this client depends on the YouTube Music
 //! web API, changes or outages on Google's side can cause `Error::Server` or
 //! parsing errors. The API is unofficial and may change without notice.
+macro_rules! path {
+    ($($segment:expr),* $(,)?) => {
+        [$($crate::nav::PathSegment::from($segment)),*]
+    };
+}
+
 mod auth;
 mod client;
 mod context;

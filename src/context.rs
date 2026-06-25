@@ -1,6 +1,6 @@
 //! Request context and headers for YouTube Music API.
 
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// YouTube Music domain
 pub const YTM_DOMAIN: &str = "https://music.youtube.com";

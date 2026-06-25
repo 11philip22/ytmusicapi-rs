@@ -1,12 +1,7 @@
 //! Example: Add a song to a playlist.
 //!
-//! Usage:
-//! 1. Export your browser headers to `headers.json` (see README)
-//! 2. Run:
-//!    cargo run --example add_song_to_playlist -- \
-//!      --playlist-id PLAYLIST_ID \
-//!      --video-id VIDEO_ID \
-//!      [--allow-duplicates]
+//! Export browser headers to `headers.json`, then run:
+//! cargo run --example add_song_to_playlist -- --playlist-id PLAYLIST_ID --video-id VIDEO_ID [--allow-duplicates]
 
 use std::env;
 
@@ -63,7 +58,9 @@ fn parse_args() -> Result<Args, String> {
 
 fn print_usage() {
     eprintln!("Usage:");
-    eprintln!("  cargo run --example add_song_to_playlist -- \\\n    --playlist-id PLAYLIST_ID \\\n    --video-id VIDEO_ID \\\n    [--allow-duplicates]");
+    eprintln!(
+        "  cargo run --example add_song_to_playlist -- \\\n    --playlist-id PLAYLIST_ID \\\n    --video-id VIDEO_ID \\\n    [--allow-duplicates]"
+    );
 }
 
 #[tokio::main]
@@ -79,7 +76,7 @@ async fn main() -> ytmusicapi::Result<()> {
             eprintln!("3. Find any request to music.youtube.com");
             eprintln!("4. Copy the request headers and save as JSON");
             eprintln!("\nExample headers.json:");
-            eprintln!("{}", r#"{"cookie": "...", "x-goog-authuser": "0"}"#);
+            eprintln!("{{\"cookie\": \"...\", \"x-goog-authuser\": \"0\"}}");
             return Ok(());
         }
     };
@@ -118,7 +115,10 @@ async fn main() -> ytmusicapi::Result<()> {
 
     let client = YTMusicClient::builder().with_browser_auth(auth).build()?;
 
-    println!("Adding video '{}' to playlist '{}'...", video_id, playlist_id);
+    println!(
+        "Adding video '{}' to playlist '{}'...",
+        video_id, playlist_id
+    );
     client
         .add_playlist_items(&playlist_id, &[video_id], args.allow_duplicates)
         .await?;

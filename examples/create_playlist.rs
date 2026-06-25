@@ -1,12 +1,7 @@
 //! Example: Create a playlist.
 //!
-//! Usage:
-//! 1. Export your browser headers to `headers.json` (see README)
-//! 2. Run:
-//!    cargo run --example create_playlist -- \
-//!      --title "My Playlist" \
-//!      [--description "Created via ytmusicapi-rs"] \
-//!      [--privacy private]
+//! Export browser headers to `headers.json`, then run:
+//! cargo run --example create_playlist -- --title "My Playlist" [--description "Created via ytmusicapi-rs"] [--privacy private]
 
 use std::env;
 
@@ -79,7 +74,9 @@ fn parse_args() -> Result<Args, String> {
 
 fn print_usage() {
     eprintln!("Usage:");
-    eprintln!("  cargo run --example create_playlist -- \\\n    --title \"My Playlist\" \\\n    [--description \"Created via ytmusicapi-rs\"] \\\n    [--privacy private]");
+    eprintln!(
+        "  cargo run --example create_playlist -- \\\n    --title \"My Playlist\" \\\n    [--description \"Created via ytmusicapi-rs\"] \\\n    [--privacy private]"
+    );
 }
 
 #[tokio::main]
@@ -95,7 +92,7 @@ async fn main() -> ytmusicapi::Result<()> {
             eprintln!("3. Find any request to music.youtube.com");
             eprintln!("4. Copy the request headers and save as JSON");
             eprintln!("\nExample headers.json:");
-            eprintln!("{}", r#"{"cookie": "...", "x-goog-authuser": "0"}"#);
+            eprintln!("{{\"cookie\": \"...\", \"x-goog-authuser\": \"0\"}}");
             return Ok(());
         }
     };

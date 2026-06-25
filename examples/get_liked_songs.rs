@@ -31,7 +31,9 @@ fn parse_args() -> Result<Args, String> {
                 return Ok(args);
             }
             "--limit" | "-l" => {
-                args.limit = iter.next().and_then(|value| value.trim().parse::<u32>().ok());
+                args.limit = iter
+                    .next()
+                    .and_then(|value| value.trim().parse::<u32>().ok());
             }
             _ => return Err(format!("Unknown argument: {}", arg)),
         }
@@ -58,7 +60,7 @@ async fn main() -> ytmusicapi::Result<()> {
             eprintln!("3. Find any request to music.youtube.com");
             eprintln!("4. Copy the request headers and save as JSON");
             eprintln!("\nExample headers.json:");
-            eprintln!("{}", r#"{"cookie": "...", "x-goog-authuser": "0"}"#);
+            eprintln!("{{\"cookie\": \"...\", \"x-goog-authuser\": \"0\"}}");
             return Ok(());
         }
     };

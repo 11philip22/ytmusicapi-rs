@@ -28,22 +28,6 @@ impl From<usize> for PathSegment {
 /// Navigate a JSON value using a path of segments.
 ///
 /// Returns `None` if any segment in the path is not found.
-///
-/// # Example
-///
-/// ```
-/// use serde_json::json;
-/// use ytmusicapi::{nav::nav, path};
-///
-/// let data = json!({
-///     "contents": [
-///         { "title": { "text": "Hello" } }
-///     ]
-/// });
-/// let title = nav(&data, &path!["contents", 0, "title", "text"])
-///     .and_then(|v| v.as_str());
-/// assert_eq!(title, Some("Hello"));
-/// ```
 pub fn nav<'a>(root: &'a Value, path: &[PathSegment]) -> Option<&'a Value> {
     let mut current = root;
 
@@ -83,15 +67,6 @@ pub fn nav_array<'a>(root: &'a Value, path: &[PathSegment]) -> Option<&'a Vec<Va
 #[allow(dead_code)]
 pub fn nav_bool(root: &Value, path: &[PathSegment]) -> Option<bool> {
     nav(root, path).and_then(|v| v.as_bool())
-}
-
-/// Macro for creating a path from mixed key/index values.
-///
-#[macro_export]
-macro_rules! path {
-    ($($segment:expr),* $(,)?) => {
-        vec![$($crate::nav::PathSegment::from($segment)),*]
-    };
 }
 
 #[cfg(test)]

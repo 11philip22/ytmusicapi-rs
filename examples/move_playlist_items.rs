@@ -1,13 +1,7 @@
 //! Example: Move items from one playlist to another.
 //!
-//! Usage:
-//! 1. Export your browser headers to `headers.json` (see README)
-//! 2. Run:
-//!    cargo run --example move_playlist_items -- \
-//!      --source PLAYLIST_ID \
-//!      --dest PLAYLIST_ID \
-//!      --video-ids VIDEO_ID_1,VIDEO_ID_2 \
-//!      [--allow-duplicates]
+//! Export browser headers to `headers.json`, then run:
+//! cargo run --example move_playlist_items -- --source PLAYLIST_ID --dest PLAYLIST_ID --video-ids VIDEO_ID_1,VIDEO_ID_2 [--allow-duplicates]
 
 use std::collections::HashSet;
 use std::env;
@@ -88,7 +82,9 @@ fn parse_args() -> Result<Args, String> {
 
 fn print_usage() {
     eprintln!("Usage:");
-    eprintln!("  cargo run --example move_playlist_items -- \\\n    --source PLAYLIST_ID \\\n    --dest PLAYLIST_ID \\\n    --video-ids VIDEO_ID_1,VIDEO_ID_2 \\\n    [--allow-duplicates]");
+    eprintln!(
+        "  cargo run --example move_playlist_items -- \\\n    --source PLAYLIST_ID \\\n    --dest PLAYLIST_ID \\\n    --video-ids VIDEO_ID_1,VIDEO_ID_2 \\\n    [--allow-duplicates]"
+    );
 }
 
 fn collect_items(tracks: &[PlaylistTrack], video_ids: &HashSet<String>) -> Vec<PlaylistTrack> {
@@ -119,7 +115,7 @@ async fn main() -> ytmusicapi::Result<()> {
             eprintln!("3. Find any request to music.youtube.com");
             eprintln!("4. Copy the request headers and save as JSON");
             eprintln!("\nExample headers.json:");
-            eprintln!("{}", r#"{"cookie": "...", "x-goog-authuser": "0"}"#);
+            eprintln!("{{\"cookie\": \"...\", \"x-goog-authuser\": \"0\"}}");
             return Ok(());
         }
     };

@@ -1,10 +1,7 @@
 //! Example: Like a song.
 //!
-//! Usage:
-//! 1. Export your browser headers to `headers.json` (see README)
-//! 2. Run:
-//!    cargo run --example like_song -- \
-//!      --video-id VIDEO_ID
+//! Export browser headers to `headers.json`, then run:
+//! cargo run --example like_song -- --video-id VIDEO_ID
 
 use std::env;
 
@@ -62,7 +59,7 @@ async fn main() -> ytmusicapi::Result<()> {
             eprintln!("3. Find any request to music.youtube.com");
             eprintln!("4. Copy the request headers and save as JSON");
             eprintln!("\nExample headers.json:");
-            eprintln!("{}", r#"{"cookie": "...", "x-goog-authuser": "0"}"#);
+            eprintln!("{{\"cookie\": \"...\", \"x-goog-authuser\": \"0\"}}");
             return Ok(());
         }
     };

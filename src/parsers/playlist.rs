@@ -7,7 +7,6 @@ use crate::parsers::navigation::paths;
 use crate::parsers::track::{
     get_fixed_column_item, get_item_text, parse_duration, parse_song_album, parse_song_artists,
 };
-use crate::path;
 use crate::types::{Author, Playlist, PlaylistSummary, PlaylistTrack, Privacy, Thumbnail};
 
 /// Parse library playlists from browse response.
@@ -44,12 +43,11 @@ pub fn parse_library_playlists(response: &Value) -> Vec<PlaylistSummary> {
         }
 
         // Option 2: Nested in itemSectionRenderer
-        if let Some(item_section) = item.get("itemSectionRenderer") {
-            if let Some(grid_items) =
+        if let Some(item_section) = item.get("itemSectionRenderer")
+            && let Some(grid_items) =
                 nav(item_section, &path!["contents", 0, "gridRenderer", "items"])
-            {
-                return grid_items.as_array();
-            }
+        {
+            return grid_items.as_array();
         }
 
         None
@@ -60,12 +58,7 @@ pub fn parse_library_playlists(response: &Value) -> Vec<PlaylistSummary> {
         None => return Vec::new(),
     };
 
-    // Skip the first item (usually "New playlist" button)
-    items
-        .iter()
-        .skip(1)
-        .filter_map(|item| parse_playlist_item(item))
-        .collect()
+    items.iter().filter_map(parse_playlist_item).collect()
 }
 
 /// Parse a single playlist item from library listing.
@@ -205,10 +198,10 @@ pub fn parse_playlist_response(response: &Value, playlist_id: &str) -> Playlist 
         }
 
         // Parse second subtitle for metadata
-        if let Some(second_subtitle) = nav(header, &path!["secondSubtitle", "runs"]) {
-            if let Some(runs) = second_subtitle.as_array() {
-                parse_playlist_meta_from_runs(runs, &mut playlist);
-            }
+        if let Some(second_subtitle) = nav(header, &path!["secondSubtitle", "runs"])
+            && let Some(runs) = second_subtitle.as_array()
+        {
+            parse_playlist_meta_from_runs(runs, &mut playlist);
         }
     }
 
@@ -245,10 +238,10 @@ fn parse_playlist_meta_from_runs(runs: &[Value], playlist: &mut Playlist) {
 
             if text_lower.contains("song") || text_lower.contains("track") {
                 // Extract track count
-                if let Some(count_str) = text.split_whitespace().next() {
-                    if let Ok(count) = count_str.replace(',', "").parse::<u32>() {
-                        playlist.track_count = Some(count);
-                    }
+                if let Some(count_str) = text.split_whitespace().next()
+                    && let Ok(count) = count_str.replace(',', "").parse::<u32>()
+                {
+                    playlist.track_count = Some(count);
                 }
             } else if text_lower.contains("hour") || text_lower.contains("minute") {
                 playlist.duration = Some(text.to_string());
@@ -259,32 +252,30 @@ fn parse_playlist_meta_from_runs(runs: &[Value], playlist: &mut Playlist) {
 
 /// Parse playlist tracks from contents array.
 pub fn parse_playlist_tracks(contents: &[Value]) -> Vec<PlaylistTrack> {
-    contents
-        .iter()
-        .filter_map(|item| parse_playlist_track(item))
-        .collect()
+    contents.iter().filter_map(parse_playlist_track).collect()
 }
 
 /// Parse a single playlist track.
 pub fn parse_playlist_track(item: &Value) -> Option<PlaylistTrack> {
     let data = item.get(paths::MRLIR)?;
 
-    let mut track = PlaylistTrack::default();
-
-    // Video ID from play button
-    track.video_id = nav_str(
-        data,
-        &path![
-            "overlay",
-            "musicItemThumbnailOverlayRenderer",
-            "content",
-            "musicPlayButtonRenderer",
-            "playNavigationEndpoint",
-            "watchEndpoint",
-            "videoId"
-        ],
-    )
-    .map(|s| s.to_string());
+    let mut track = PlaylistTrack {
+        // Video ID from play button
+        video_id: nav_str(
+            data,
+            &path![
+                "overlay",
+                "musicItemThumbnailOverlayRenderer",
+                "content",
+                "musicPlayButtonRenderer",
+                "playNavigationEndpoint",
+                "watchEndpoint",
+                "videoId"
+            ],
+        )
+        .map(|s| s.to_string()),
+        ..Default::default()
+    };
 
     // Set video ID from menu (for removing from playlist)
     if let Some(menu_items) = nav_array(data, paths::MENU_ITEMS) {
@@ -391,6 +382,43 @@ mod tests {
     use super::*;
     use serde_json::json;
 
+    fn library_response(items: serde_json::Value) -> serde_json::Value {
+        json!({
+            "contents": {
+                "singleColumnBrowseResultsRenderer": {
+                    "tabs": [{
+                        "tabRenderer": {
+                            "content": {
+                                "sectionListRenderer": {
+                                    "contents": [{
+                                        "gridRenderer": {
+                                            "items": items
+                                        }
+                                    }]
+                                }
+                            }
+                        }
+                    }]
+                }
+            }
+        })
+    }
+
+    fn playlist_item(title: &str, playlist_id: &str) -> serde_json::Value {
+        json!({
+            "musicTwoRowItemRenderer": {
+                "title": {
+                    "runs": [{ "text": title }]
+                },
+                "navigationEndpoint": {
+                    "watchEndpoint": {
+                        "playlistId": playlist_id
+                    }
+                }
+            }
+        })
+    }
+
     #[test]
     fn test_parse_thumbnails() {
         let data = json!({
@@ -406,5 +434,30 @@ mod tests {
         assert_eq!(thumbs.len(), 2);
         assert_eq!(thumbs[0].url, "https://example.com/1.jpg");
         assert_eq!(thumbs[0].width, Some(100));
+    }
+
+    #[test]
+    fn test_parse_library_playlists_keeps_first_playlist() {
+        let response = library_response(json!([
+            playlist_item("First", "VLPLFIRST"),
+            playlist_item("Second", "VLPLSECOND")
+        ]));
+
+        let playlists = parse_library_playlists(&response);
+        assert_eq!(playlists.len(), 2);
+        assert_eq!(playlists[0].playlist_id, "PLFIRST");
+        assert_eq!(playlists[0].title, "First");
+    }
+
+    #[test]
+    fn test_parse_library_playlists_ignores_non_playlist_tile() {
+        let response = library_response(json!([
+            { "musicNavigationButtonRenderer": {} },
+            playlist_item("First", "VLPLFIRST")
+        ]));
+
+        let playlists = parse_library_playlists(&response);
+        assert_eq!(playlists.len(), 1);
+        assert_eq!(playlists[0].playlist_id, "PLFIRST");
     }
 }
